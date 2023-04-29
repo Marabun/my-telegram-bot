@@ -56,13 +56,20 @@ def main_menu(update: Update, context: CallbackContext):
     update.message.reply_text('Выберите действие:', reply_markup=reply_markup)
 
 def price(update: Update, context: CallbackContext):
-    exchange = ccxt.binance()
-    ticker = exchange.fetch_ticker('BTC/USDT')
-    price = ticker['last']
-    context.bot.send_message(
-        chat_id=update.effective_user.id,
-        text=f"Текущая цена BTC: {price:.2f} USDT",
-    )
+    try:
+        exchange = ccxt.binance()
+        ticker = exchange.fetch_ticker('BTC/USDT')
+        price = ticker['last']
+        context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text=f"Текущая цена BTC: {price:.2f} USDT",
+        )
+    except ccxt.BaseError as e:
+        logging.error(f"Ошибка API при вызове функции price: {e}")
+        context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Извините, произошла ошибка при получении данных с биржи. Пожалуйста, попробуйте позже.",
+        )
     # Детали цены добавлю в следующем сообщении
 
 # В конфигурации обработчика разговоров добавьте следующую строку:
@@ -167,9 +174,13 @@ def check_alerts(context: CallbackContext):
     if "alerts" not in context.bot_data:
         context.bot_data["alerts"] = {}
 
-    exchange = ccxt.binance()
-    ticker = exchange.fetch_ticker("BTC/USDT")
-    price = ticker["last"]
+    try:
+        exchange = ccxt.binance()
+        ticker = exchange.fetch_ticker("BTC/USDT")
+        price = ticker["last"]
+    except ccxt.BaseError as e:
+        logging.error(f"Ошибка API при вызове функции check_alerts: {e}")
+        return
 
     for user_id, user_data in context.bot_data["alerts"].items():
         percentage = user_data.get("alert_percentage")
@@ -186,6 +197,7 @@ def check_alerts(context: CallbackContext):
                     chat_id=user_id,
                     text=f"Цена BTC {direction} на {abs(price_change):.2f}%.\nТекущая цена: {price:.2f} USDT\nСумма оповещения: {alert_sum:.2f} USDT",
                 )
+
 
 if __name__ == "__main__":
     # Инициализируйте задание для периодической проверки оповещений.
